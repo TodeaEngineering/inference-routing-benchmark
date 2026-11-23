@@ -1,0 +1,11 @@
+# Predictor coefficients fitted by fit_profile.py to the observation events of
+# 20261112-174529, 20261112-174529-r2, 20261112-174529-r3, 20261112-174529-r4, 20261112-174529-r5.
+# Everything that is not listed keeps the chart's default.
+config:
+  profiles:
+    default:
+      predictor:
+        base_ms: 55
+        attention_uncached_block_ms: 1.28
+        attention_uncached_per_every_block_ms: 0.002
+        forward_pass_ms: 17.4

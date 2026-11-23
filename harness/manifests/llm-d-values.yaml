@@ -1,0 +1,29 @@
+# llm-d router in standalone mode: the endpoint picker with an Envoy sidecar,
+# selecting the replicas by label. The scheduling profile is the chart's
+# default: queue (2), KV-cache utilization (2) and prefix-cache (3) scorers.
+router:
+  modelServers:
+    type: vllm
+    matchLabels:
+      app: vllm
+    targetPorts:
+      - number: 8000
+  inferencePool:
+    create: false
+  epp:
+    image:
+      pullPolicy: IfNotPresent
+    # The chart asks for 8 CPUs and 8Gi by default, sized for production.
+    resources:
+      requests:
+        cpu: "1"
+        memory: 1Gi
+      limits:
+        memory: 4Gi
+  proxy:
+    resources:
+      requests:
+        cpu: 500m
+        memory: 512Mi
+      limits:
+        memory: 2Gi

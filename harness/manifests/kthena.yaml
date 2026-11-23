@@ -1,0 +1,32 @@
+# Kthena in front of the replicas: one ModelServer that selects them by label
+# and one ModelRoute for the model name. The scheduler plugins are the chart's
+# defaults: least-request, gpu-usage, least-latency and prefix-cache.
+apiVersion: networking.serving.volcano.sh/v1alpha1
+kind: ModelServer
+metadata:
+  name: vllm
+  namespace: __NS__
+  labels:
+    app.kubernetes.io/part-of: routing-bench
+spec:
+  workloadSelector:
+    matchLabels:
+      app: vllm
+  workloadPort:
+    port: 8000
+  model: "__MODEL__"
+  inferenceEngine: vLLM
+---
+apiVersion: networking.serving.volcano.sh/v1alpha1
+kind: ModelRoute
+metadata:
+  name: vllm
+  namespace: __NS__
+  labels:
+    app.kubernetes.io/part-of: routing-bench
+spec:
+  modelName: "__MODEL__"
+  rules:
+    - name: default
+      targetModels:
+        - modelServerName: vllm

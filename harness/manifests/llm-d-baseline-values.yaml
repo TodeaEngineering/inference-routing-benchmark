@@ -1,0 +1,25 @@
+# The profile of llm-d's quickstart guide, fitted to this fleet. It follows
+# guides/optimized-baseline/router/optimized-baseline.values.yaml of llm-d
+# v1.0.0 and differs from it in one place: peakPrefillThroughput is the value
+# that llm-d's calibration Job measured on these replicas, as the guide asks
+# for other hardware than its own. The guide's own value is 15928.
+# run.sh layers it on the guides' base.values.yaml and fills in the value.
+router:
+  epp:
+    pluginsConfigFile: "optimized-baseline-plugins.yaml"
+    pluginsCustomConfig:
+      optimized-baseline-plugins.yaml: |
+        apiVersion: llm-d.ai/v1
+        kind: EndpointPickerConfig
+        plugins:
+        - type: approx-prefix-cache-producer
+        - type: inflight-load-producer
+        - type: prefix-cache-affinity-filter
+          parameters:
+            peakPrefillThroughput: __LLMD_PEAK_PREFILL__
+        - type: token-load-scorer
+        schedulingProfiles:
+        - name: default
+          plugins:
+          - pluginRef: prefix-cache-affinity-filter
+          - pluginRef: token-load-scorer

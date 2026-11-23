@@ -1,0 +1,68 @@
+# llm-d's guide for precise prefix-cache routing, fitted to this fleet. It
+# follows guides/precise-prefix-cache-routing/router/precise-prefix-cache-routing.values.yaml
+# of llm-d v1.0.0 and differs from it in five places:
+#   - modelName is this benchmark's model;
+#   - blockSizeTokens is 16, the block size of these vLLM replicas. The guide
+#     runs vLLM with --block-size 64 and says to change both together;
+#   - the KV-event ports are the ones that vllm.yaml publishes on;
+#   - the Hugging Face token is left out, because the model is not gated;
+#   - peakPrefillThroughput is the value that llm-d's calibration Job measured
+#     on these replicas, as the guide asks for other hardware than its own.
+#     The guide's own value is 15926.
+# run.sh layers it on the guides' base.values.yaml and fills in the model and
+# the measured value.
+router:
+  epp:
+    replicas: 1
+    flags:
+      ha-enable-leader-election: false
+    pluginsConfigFile: "precise-prefix-cache-routing-plugins.yaml"
+    pluginsCustomConfig:
+      precise-prefix-cache-routing-plugins.yaml: |
+        apiVersion: llm-d.ai/v1
+        kind: EndpointPickerConfig
+        plugins:
+          - type: token-producer
+            parameters:
+              modelName: __MODEL__
+              vllm:
+                endpointDiscovery:
+                  attemptTimeout: 2s
+                messagesRenderMode: auto
+                responsesRenderMode: auto
+          - type: endpoint-notification-source
+          - type: precise-prefix-cache-producer
+            parameters:
+              tokenProcessorConfig:
+                blockSizeTokens: 16
+                hashAlgorithm: xxh64
+              speculativeIndexing: true
+              indexerConfig:
+                kvBlockIndexConfig:
+                  enableMetrics: true
+              kvEventsConfig:
+                engineType: "vllm"
+                topicFilter: "kv@"
+                concurrency: 8
+                discoverPods: true
+                podDiscoveryConfig:
+                  socketPort: 5557
+                  replaySocketPort: 5558
+          - type: inflight-load-producer
+            parameters:
+              prefixMatchInfoProducerName: precise-prefix-cache-producer
+          - type: prefix-cache-affinity-filter
+            parameters:
+              prefixMatchInfoProducerName: precise-prefix-cache-producer
+              peakPrefillThroughput: __LLMD_PEAK_PREFILL__
+          - type: token-load-scorer
+        dataLayer:
+          sources:
+            - pluginRef: endpoint-notification-source
+              extractors:
+                - pluginRef: precise-prefix-cache-producer
+        schedulingProfiles:
+          - name: default
+            plugins:
+              - pluginRef: prefix-cache-affinity-filter
+              - pluginRef: token-load-scorer

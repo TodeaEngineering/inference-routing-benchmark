@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="860" height="640" viewBox="0 0 860 640" font-family="'Plus Jakarta Sans', Inter, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" role="img" aria-labelledby="title desc">
+<title id="title">Inference routing benchmark architecture</title>
+<desc id="desc">Make, run on your machine, drives the cluster with terraform, helm and kubectl, and results come back to results/. On one GKE Spot g4-standard-48 node, a load-generator Job sends requests on a new connection each to the router under test, one stack at a time: the Kubernetes Service, Dynamo, Kinference, Kthena, llm-d or production-stack. The router sends them to three vLLM replicas of 28,000 MiB each and reads their KV events and metrics. The replicas share one NVIDIA RTX PRO 6000 of 96 GB through HAMi, which caps memory but not compute. Dynamo runs replace the replicas with three Dynamo workers.</desc>
+<rect x="0" y="0" width="860" height="640" rx="24" fill="#ffffff"/>
+<rect x="20" y="16" width="820" height="96" rx="16" fill="#ffffff" stroke="#d4d4d4" stroke-width="1.0"/>
+<text x="44" y="44" font-size="14" font-weight="700" fill="#171717" text-anchor="start">Your machine</text>
+<rect x="110" y="58" width="140" height="36" rx="18" fill="#ffffff" stroke="#2563eb" stroke-width="1.5"/>
+<text x="180" y="81" font-size="13" font-weight="600" fill="#171717" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">results/</text>
+<rect x="438" y="58" width="260" height="36" rx="18" fill="#ffffff" stroke="#2563eb" stroke-width="1.5"/>
+<text x="568" y="81" font-size="13" font-weight="600" fill="#171717" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">make up · make benchmark</text>
+<rect x="20" y="160" width="820" height="460" rx="20" fill="#eef1fb" stroke="#2563eb" stroke-width="1.2"/>
+<text x="50" y="390" font-size="14" font-weight="700" fill="#171717" text-anchor="middle" transform="rotate(-90 50 390)">GKE Spot node, g4-standard-48</text>
+<rect x="80" y="204" width="200" height="72" rx="14" fill="#ffffff" stroke="#d4d4d4" stroke-width="1.0"/>
+<text x="180" y="235" font-size="13" font-weight="700" fill="#171717" text-anchor="middle">Load-generator Job</text>
+<text x="180" y="256" font-size="12" font-weight="400" fill="#525252" text-anchor="middle">new connection per request</text>
+<rect x="340" y="204" width="476" height="176" rx="16" fill="#2563eb" stroke="#1d4ed8" stroke-width="1.0"/>
+<text x="364" y="233" font-size="13" font-weight="700" fill="#ffffff" text-anchor="start">Router under test, one stack at a time</text>
+<text x="364" y="259" font-size="13" font-weight="400" fill="#ffffff" text-anchor="start">Kubernetes Service: kube-proxy rules</text>
+<text x="364" y="280" font-size="13" font-weight="400" fill="#ffffff" text-anchor="start">Dynamo: Frontend with its KV router</text>
+<text x="364" y="301" font-size="13" font-weight="400" fill="#ffffff" text-anchor="start">Kinference: Buoyant Gateway and Kinference</text>
+<text x="364" y="322" font-size="13" font-weight="400" fill="#ffffff" text-anchor="start">Kthena: the Kthena router</text>
+<text x="364" y="343" font-size="13" font-weight="400" fill="#ffffff" text-anchor="start">llm-d: Envoy and the endpoint picker</text>
+<text x="364" y="364" font-size="13" font-weight="400" fill="#ffffff" text-anchor="start">production-stack: its Python router</text>
+<path d="M280 240 L332 240" stroke="#2563eb" stroke-width="2.0"/>
+<path d="M340 240 L332 235 L332 245 Z" fill="#2563eb"/>
+<text x="310" y="230" font-size="12" font-weight="400" fill="#525252" text-anchor="middle">requests</text>
+<path d="M392 380 L392 428" stroke="#2563eb" stroke-width="2.0"/>
+<path d="M392 436 L387 428 L397 428 Z" fill="#2563eb"/>
+<path d="M432 436 L432 388" stroke="#a3a3a3" stroke-width="2.0" stroke-dasharray="5 4"/>
+<path d="M432 380 L427 388 L437 388 Z" fill="#a3a3a3"/>
+<rect x="340" y="436" width="144" height="64" rx="14" fill="#ffffff" stroke="#93c5fd" stroke-width="1.2"/>
+<text x="412" y="463" font-size="13" font-weight="700" fill="#171717" text-anchor="middle">vLLM replica 0</text>
+<text x="412" y="484" font-size="12" font-weight="400" fill="#525252" text-anchor="middle">28,000 MiB</text>
+<path d="M412 500 L412 528" stroke="#a3a3a3" stroke-width="2"/>
+<path d="M558 380 L558 428" stroke="#2563eb" stroke-width="2.0"/>
+<path d="M558 436 L553 428 L563 428 Z" fill="#2563eb"/>
+<path d="M598 436 L598 388" stroke="#a3a3a3" stroke-width="2.0" stroke-dasharray="5 4"/>
+<path d="M598 380 L593 388 L603 388 Z" fill="#a3a3a3"/>
+<rect x="506" y="436" width="144" height="64" rx="14" fill="#ffffff" stroke="#93c5fd" stroke-width="1.2"/>
+<text x="578" y="463" font-size="13" font-weight="700" fill="#171717" text-anchor="middle">vLLM replica 1</text>
+<text x="578" y="484" font-size="12" font-weight="400" fill="#525252" text-anchor="middle">28,000 MiB</text>
+<path d="M578 500 L578 528" stroke="#a3a3a3" stroke-width="2"/>
+<path d="M724 380 L724 428" stroke="#2563eb" stroke-width="2.0"/>
+<path d="M724 436 L719 428 L729 428 Z" fill="#2563eb"/>
+<path d="M764 436 L764 388" stroke="#a3a3a3" stroke-width="2.0" stroke-dasharray="5 4"/>
+<path d="M764 380 L759 388 L769 388 Z" fill="#a3a3a3"/>
+<rect x="672" y="436" width="144" height="64" rx="14" fill="#ffffff" stroke="#93c5fd" stroke-width="1.2"/>
+<text x="744" y="463" font-size="13" font-weight="700" fill="#171717" text-anchor="middle">vLLM replica 2</text>
+<text x="744" y="484" font-size="12" font-weight="400" fill="#525252" text-anchor="middle">28,000 MiB</text>
+<path d="M744 500 L744 528" stroke="#a3a3a3" stroke-width="2"/>
+<text x="550" y="413" font-size="12" font-weight="400" fill="#525252" text-anchor="end">requests</text>
+<text x="606" y="405" font-size="12" font-weight="400" fill="#525252" text-anchor="start">KV events</text>
+<text x="606" y="421" font-size="12" font-weight="400" fill="#525252" text-anchor="start">and metrics</text>
+<rect x="340" y="528" width="476" height="60" rx="14" fill="#171717"/>
+<text x="578" y="553" font-size="13" font-weight="700" fill="#ffffff" text-anchor="middle">NVIDIA RTX PRO 6000, 96 GB</text>
+<text x="578" y="573" font-size="12" font-weight="400" fill="#d4d4d4" text-anchor="middle">HAMi caps memory per replica, not compute</text>
+<rect x="80" y="528" width="230" height="60" rx="14" fill="#ffffff" stroke="#a3a3a3" stroke-width="1.2" stroke-dasharray="4 4"/>
+<text x="195" y="553" font-size="13" font-weight="700" fill="#171717" text-anchor="middle">Dynamo runs: three Dynamo</text>
+<text x="195" y="573" font-size="12" font-weight="400" fill="#525252" text-anchor="middle">workers replace the vLLM replicas</text>
+<path d="M568 94 L568 152" stroke="#525252" stroke-width="1.6"/>
+<path d="M568 160 L563 152 L573 152 Z" fill="#525252"/>
+<text x="580" y="132" font-size="12" font-weight="400" fill="#525252" text-anchor="start">terraform, helm, kubectl</text>
+<path d="M180 204 L180 102" stroke="#525252" stroke-width="1.6" stroke-dasharray="5 4"/>
+<path d="M180 94 L175 102 L185 102 Z" fill="#525252"/>
+<text x="192" y="132" font-size="12" font-weight="400" fill="#525252" text-anchor="start">one record per request</text>
+</svg>

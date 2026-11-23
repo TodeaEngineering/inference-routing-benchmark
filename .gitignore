@@ -1,0 +1,5 @@
+results/
+cluster/.terraform/
+cluster/terraform.tfstate*
+cluster/terraform.tfvars
+__pycache__/

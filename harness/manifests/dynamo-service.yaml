@@ -1,0 +1,16 @@
+# Headless Service that resolves to every Dynamo worker, for the engine
+# metrics that each worker passes through on its system port.
+apiVersion: v1
+kind: Service
+metadata:
+  name: dynamo-worker-pods
+  namespace: __NS__
+  labels:
+    app.kubernetes.io/part-of: routing-bench
+spec:
+  clusterIP: None
+  selector:
+    app: dynamo-worker
+  ports:
+    - name: system
+      port: 9090

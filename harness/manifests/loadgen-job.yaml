@@ -1,0 +1,64 @@
+# One benchmark run: one front door, one workload. run.sh creates it once per
+# stack and workload and saves its log.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: loadgen
+  namespace: __NS__
+  labels:
+    app.kubernetes.io/part-of: routing-bench
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: loadgen
+        app.kubernetes.io/part-of: routing-bench
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        pool: gpu
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      volumes:
+        - name: script
+          configMap:
+            name: loadgen
+      containers:
+        - name: loadgen
+          image: python:3.12-slim
+          command: ["python3", "-u", "/opt/loadgen/loadgen.py"]
+          envFrom:
+            # Overrides from LOADGEN_ENV, for example CONCURRENCY=12.
+            - configMapRef:
+                name: loadgen-env
+                optional: true
+          env:
+            - name: STACK
+              value: "__STACK__"
+            - name: WORKLOAD
+              value: "__WORKLOAD__"
+            - name: BASE_URL
+              value: "__BASE_URL__"
+            - name: ENGINE_URL
+              value: "__ENGINE_URL__"
+            # What the overhead workload compares the front door with.
+            - name: DIRECT_URL
+              value: "__DIRECT_URL__"
+            - name: PODS_HOST
+              value: "__PODS_HOST__"
+            - name: PODS_PORT
+              value: "__PODS_PORT__"
+            - name: ROUTER_METRICS_URL
+              value: "__ROUTER_METRICS_URL__"
+            - name: MODEL
+              value: "__MODEL__"
+          volumeMounts:
+            - name: script
+              mountPath: /opt/loadgen
+          resources:
+            requests:
+              cpu: "1"
+              memory: 512Mi

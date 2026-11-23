@@ -1,0 +1,41 @@
+# Downloads the model once to the GPU node's disk, so the replicas do not
+# each fetch it and a failed download stops the run before any GPU pod starts.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: model-download
+  namespace: __NS__
+  labels:
+    app.kubernetes.io/part-of: routing-bench
+spec:
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: routing-bench
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        pool: gpu
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      volumes:
+        - name: hf
+          hostPath:
+            path: /var/lib/routing-bench/hf
+            type: DirectoryOrCreate
+      containers:
+        - name: download
+          image: __VLLM_IMAGE__
+          command:
+            - python3
+            - -c
+            - "from huggingface_hub import snapshot_download; print(snapshot_download('__MODEL__'))"
+          env:
+            - name: HF_HOME
+              value: /hf
+          volumeMounts:
+            - name: hf
+              mountPath: /hf

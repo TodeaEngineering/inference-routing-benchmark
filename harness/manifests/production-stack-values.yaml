@@ -1,0 +1,28 @@
+# The production-stack router alone, in front of the benchmark's replicas.
+# run.sh sets routerSpec.routingLogic and pins routerSpec.tag to the chart
+# release; the chart's own default is the tag "latest", pulled every time.
+servingEngineSpec:
+  # The chart passes a label selector to the router only with the engine part
+  # enabled.
+  enableEngine: true
+  # No model of the chart's own. Its default list holds one disabled example,
+  # for which the chart still creates a Service and a storage claim that never
+  # binds, so that `helm install --wait` would not return.
+  modelSpec: []
+  # The router's Kubernetes discovery looks for pods with these labels in the
+  # release namespace. null removes the chart's defaults from the selector.
+  labels:
+    app: vllm
+    environment: null
+    release: null
+routerSpec:
+  repository: lmcache/lmstack-router
+  imagePullPolicy: IfNotPresent
+  # The requests of the chart's prefix-aware example. That example also limits
+  # the router to one CPU; no other router in this benchmark has a CPU limit.
+  resources:
+    requests:
+      cpu: "1"
+      memory: 2G
+    limits:
+      memory: 2G

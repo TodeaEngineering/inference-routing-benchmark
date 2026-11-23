@@ -1,0 +1,144 @@
+# Three replicas of one model on the single GPU node. Placeholders (__NAME__)
+# are filled in by run.sh.
+apiVersion: v1
+kind: Service
+metadata:
+  name: vllm
+  namespace: __NS__
+  labels:
+    app.kubernetes.io/part-of: routing-bench
+spec:
+  selector:
+    app: vllm
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+    # KV-cache events over ZeroMQ, which Kinference subscribes to.
+    - name: kv-pub
+      port: 5557
+      targetPort: kv-pub
+    - name: kv-replay
+      port: 5558
+      targetPort: kv-replay
+---
+# Headless twin that resolves to every replica, for per-replica metrics.
+apiVersion: v1
+kind: Service
+metadata:
+  name: vllm-pods
+  namespace: __NS__
+  labels:
+    app.kubernetes.io/part-of: routing-bench
+spec:
+  clusterIP: None
+  selector:
+    app: vllm
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: vllm
+  namespace: __NS__
+  labels:
+    app.kubernetes.io/part-of: routing-bench
+spec:
+  serviceName: vllm-pods
+  replicas: __REPLICAS__
+  # Start and replace every replica at once: each run begins with a cold fleet.
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      app: vllm
+  template:
+    metadata:
+      labels:
+        app: vllm
+        app.kubernetes.io/part-of: routing-bench
+    spec:
+      terminationGracePeriodSeconds: 10
+      # The Service is named vllm, so Kubernetes would inject VLLM_PORT=tcp://...
+      # into every pod of the namespace. vLLM reads variables with that prefix
+      # as its own settings and refuses to start on that value.
+      enableServiceLinks: false
+      runtimeClassName: nvidia
+      nodeSelector:
+        pool: gpu
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      volumes:
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 8Gi
+        # The weights live on the node, so a restarted replica loads in seconds.
+        - name: hf
+          hostPath:
+            path: /var/lib/routing-bench/hf
+            type: DirectoryOrCreate
+      containers:
+        - name: vllm
+          image: __VLLM_IMAGE__
+          command:
+            - vllm
+            - serve
+            - __MODEL__
+            - --port
+            - "8000"
+            - --max-model-len
+            - "__MAX_MODEL_LEN__"
+            - --gpu-memory-utilization
+            - "__GPU_MEM_UTIL__"
+            # Report cached prompt tokens in every response's usage block.
+            - --enable-prompt-tokens-details
+            # Serve /v1/chat/completions/render, which Kinference tokenizes
+            # prompts with. vLLM 0.31 registers it only with this flag, and
+            # without it every Kinference pick silently falls back to load alone.
+            - --enable-scale-out
+            # Publish a ZeroMQ event for every KV-cache block stored or evicted.
+            # The topic names the replica and the model, which is the format
+            # that llm-d's precise prefix-cache guide sets and that its router
+            # reads the replica and the model from. Kinference subscribes to
+            # every topic and does not read it.
+            - --kv-events-config
+            - '{"enable_kv_cache_events":true,"publisher":"zmq","endpoint":"tcp://*:5557","replay_endpoint":"tcp://*:5558","topic":"kv@$(POD_IP):8000@__MODEL__"}'
+          env:
+            - name: HF_HOME
+              value: /hf
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          ports:
+            - name: http
+              containerPort: 8000
+            - name: kv-pub
+              containerPort: 5557
+            - name: kv-replay
+              containerPort: 5558
+          volumeMounts:
+            - name: shm
+              mountPath: /dev/shm
+            - name: hf
+              mountPath: /hf
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            failureThreshold: 180
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+          resources:
+            limits:
+              __GPU_RESOURCE__: "1"
+              __GPUMEM_LINE__

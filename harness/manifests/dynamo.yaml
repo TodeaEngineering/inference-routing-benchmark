@@ -1,0 +1,93 @@
+# NVIDIA Dynamo: its Frontend and three vLLM workers of its own. Dynamo's
+# Frontend routes only to workers that registered with Dynamo, so run.sh stops
+# the shared replicas while this stack runs. The workers get the same model,
+# context length and GPU memory as the shared replicas. Placeholders (__NAME__)
+# are filled in by run.sh. It drops the lines marked "# kv" for the round-robin
+# stack, and the lines marked "# tuned" for every stack but the tuned one.
+apiVersion: nvidia.com/v1beta1
+kind: DynamoGraphDeployment
+metadata:
+  name: bench
+  namespace: __NS__
+  labels:
+    app.kubernetes.io/part-of: routing-bench
+spec:
+  components:
+    - name: Frontend
+      type: frontend
+      replicas: 1
+      podTemplate:
+        spec:
+          containers:
+            - name: main
+              image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:__DYNAMO_VERSION__
+              env:
+                # round-robin is Dynamo's default; kv scores on KV-cache overlap and load.
+                - name: DYN_ROUTER_MODE
+                  value: "__ROUTER_MODE__"
+                # Dynamo's tuning guidelines name this option for bursts of
+                # requests that share a prefix, which the burst workload sends:
+                # the router remembers its own pick until the engine's event
+                # for the stored blocks arrives.
+                - name: DYN_ROUTER_PREDICTED_TTL_SECS # tuned
+                  value: "5" # tuned
+                # How much prompt-side work counts against decode-side load in
+                # the router's cost. With the default of 1, one more request in
+                # flight on the worker that holds the prefix already outweighs
+                # the cache hit. Dynamo 1.6 still reads this variable and names
+                # prefill_load_scale in a policy file as its successor.
+                - name: DYN_ROUTER_PREFILL_LOAD_SCALE # tuned
+                  value: "__DYNAMO_PREFILL_LOAD_SCALE__" # tuned
+    - name: worker
+      type: worker
+      replicas: __REPLICAS__
+      podTemplate:
+        metadata:
+          labels:
+            app: dynamo-worker
+            app.kubernetes.io/part-of: routing-bench
+        spec:
+          terminationGracePeriodSeconds: 10
+          # The benchmark's Service is named vllm, so Kubernetes would inject
+          # VLLM_PORT=tcp://... into this pod, and vLLM refuses that value.
+          enableServiceLinks: false
+          runtimeClassName: nvidia
+          nodeSelector:
+            pool: gpu
+          tolerations:
+            - key: nvidia.com/gpu
+              operator: Exists
+              effect: NoSchedule
+          volumes:
+            # The weights that run.sh prepare downloaded to the node.
+            - name: hf
+              hostPath:
+                path: /var/lib/routing-bench/hf
+                type: DirectoryOrCreate
+          containers:
+            - name: main
+              image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:__DYNAMO_VERSION__
+              workingDir: /workspace/examples/backends/vllm
+              command:
+                - python3
+                - -m
+                - dynamo.vllm
+              args:
+                - --model
+                - __MODEL__
+                - --max-model-len
+                - "__MAX_MODEL_LEN__"
+                - --gpu-memory-utilization
+                - "__GPU_MEM_UTIL__"
+                - --kv-events-config # kv
+                - '{"publisher":"zmq","topic":"kv-events","endpoint":"tcp://*:20080","enable_kv_cache_events":true}' # kv
+              env:
+                - name: HF_HOME
+                  value: /hf
+              volumeMounts:
+                - name: hf
+                  mountPath: /hf
+              resources:
+                limits:
+                  __GPU_RESOURCE__: "1"
+                  __GPUMEM_LINE__

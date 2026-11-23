@@ -1,0 +1,85 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gpu-operator
+---
+# GKE requires a quota before admitting the toolkit's critical-priority pods.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: gpu-operator-critical-pods
+  namespace: gpu-operator
+spec:
+  hard:
+    pods: "100"
+  scopeSelector:
+    matchExpressions:
+      - scopeName: PriorityClass
+        operator: In
+        values:
+          - system-node-critical
+          - system-cluster-critical
+---
+# GKE/COS driver, runtime setup, and UUID-based CDI devices for HAMi.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: gpu-setup
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      app: gpu-setup
+  template:
+    metadata:
+      labels:
+        app: gpu-setup
+    spec:
+      nodeSelector:
+        pool: gpu
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: nvidia-smi
+          image: busybox:1.37
+          securityContext:
+            privileged: true
+          command: ["sh", "-c"]
+          args:
+            - |
+              printf '#!/bin/sh\nexec chroot /host env LD_LIBRARY_PATH=/home/kubernetes/bin/nvidia/lib64 /home/kubernetes/bin/nvidia/bin/nvidia-smi "$@"\n' > /bin/nvidia-smi
+              cat > /bin/reset <<'EOF'
+              #!/bin/sh
+              set -e
+              nvidia-smi -c DEFAULT >/dev/null
+              nvidia-smi mig -dci >/dev/null 2>&1 || true
+              nvidia-smi mig -dgi >/dev/null 2>&1 || true
+              nvidia-smi -mig 0 >/dev/null
+              [ "$(nvidia-smi --query-gpu=mig.mode.current --format=csv,noheader)" = Disabled ] || { echo "MIG mode is still pending: is something using the card?"; exit 1; }
+              nvidia-smi -L
+              EOF
+              chmod +x /bin/nvidia-smi /bin/reset
+              until nvidia-smi -L >/dev/null 2>&1; do sleep 10; done
+              ctk=/home/kubernetes/bin/nvidia/toolkit/nvidia-ctk
+              until [ -x /host$ctk ]; do sleep 10; done
+              until reset; do sleep 30; done
+              until chroot /host $ctk cdi generate --mode=nvml --vendor=management.nvidia.com --class=gpu --device-name-strategy=uuid \
+                --driver-root=/home/kubernetes/bin/nvidia --dev-root=/ --nvidia-cdi-hook-path=/home/kubernetes/bin/nvidia/toolkit/nvidia-cdi-hook \
+                --format=json --output=/etc/cdi/management.nvidia.com-gpu-by-uuid.json >/tmp/cdi.log 2>&1; do
+                echo "$(date -u +%FT%TZ) CDI spec generation failed, will retry:"; grep -i -v 'selecting\|could not locate' /tmp/cdi.log | tail -3; sleep 5
+              done
+              touch /tmp/ready
+              while sleep 3600; do :; done
+          readinessProbe:
+            exec:
+              command: ["test", "-f", "/tmp/ready"]
+            periodSeconds: 5
+          volumeMounts:
+            - name: host
+              mountPath: /host
+      volumes:
+        - name: host
+          hostPath:
+            path: /
